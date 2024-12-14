@@ -2,9 +2,9 @@
 CREATE DATABASE postgres
     WITH
     OWNER = "xmb-test"
-    ENCODING = 'UTF8'
-    LC_COLLATE = 'en_US.utf8'
-    LC_CTYPE = 'en_US.utf8'
+    ENCODING = 'UTF-8'
+    LC_COLLATE = 'en_US.UTF-8'
+    LC_CTYPE = 'en_US.UTF-8'
     LOCALE_PROVIDER = 'libc'
     TABLESPACE = pg_default
     CONNECTION LIMIT = -1
@@ -23,9 +23,9 @@ COMMENT ON DATABASE postgres
 CREATE DATABASE "surface-scan-test"
     WITH
     OWNER = "surface-scan-test"
-    ENCODING = 'UTF8'
-    LC_COLLATE = 'en_US.utf8'
-    LC_CTYPE = 'en_US.utf8'
+    ENCODING = 'UTF-8'
+    LC_COLLATE = 'en_US.UTF-8'
+    LC_CTYPE = 'en_US.UTF-8'
     LOCALE_PROVIDER = 'libc'
     TABLESPACE = pg_default
     CONNECTION LIMIT = -1
@@ -141,9 +141,9 @@ GRANT ALL ON SEQUENCE public.scan_result_id_seq TO "xmb-test";
 CREATE DATABASE "xmb-test"
     WITH
     OWNER = "xmb-test"
-    ENCODING = 'UTF8'
-    LC_COLLATE = 'en_US.utf8'
-    LC_CTYPE = 'en_US.utf8'
+    ENCODING = 'UTF-8'
+    LC_COLLATE = 'en_US.UTF-8'
+    LC_CTYPE = 'en_US.UTF-8'
     LOCALE_PROVIDER = 'libc'
     TABLESPACE = pg_default
     CONNECTION LIMIT = -1
