@@ -1,0 +1,1053 @@
+
+CREATE DATABASE postgres
+    WITH
+    OWNER = "xmb-test"
+    ENCODING = 'UTF8'
+    LC_COLLATE = 'en_US.utf8'
+    LC_CTYPE = 'en_US.utf8'
+    LOCALE_PROVIDER = 'libc'
+    TABLESPACE = pg_default
+    CONNECTION LIMIT = -1
+    IS_TEMPLATE = False;
+
+COMMENT ON DATABASE postgres
+    IS 'default administrative connection database';
+******************************************************************
+
+
+
+-- Database: surface-scan-test
+
+-- DROP DATABASE IF EXISTS "surface-scan-test";
+
+CREATE DATABASE "surface-scan-test"
+    WITH
+    OWNER = "surface-scan-test"
+    ENCODING = 'UTF8'
+    LC_COLLATE = 'en_US.utf8'
+    LC_CTYPE = 'en_US.utf8'
+    LOCALE_PROVIDER = 'libc'
+    TABLESPACE = pg_default
+    CONNECTION LIMIT = -1
+    IS_TEMPLATE = False;
+
+-- SEQUENCE: public.scan_id_seq
+
+-- DROP SEQUENCE IF EXISTS public.scan_id_seq;
+
+
+------------------------------------------------------------
+-- Table: public.scan
+
+-- DROP TABLE IF EXISTS public.scan;
+
+CREATE TABLE IF NOT EXISTS public.scan
+(
+    id integer NOT NULL DEFAULT nextval('scan_id_seq'::regclass),
+    scan_date timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    metadata json NOT NULL DEFAULT '{}'::json,
+    main_image_path character varying(200) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT scan_pk PRIMARY KEY (id)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.scan
+    OWNER to "xmb-test";
+
+GRANT ALL ON TABLE public.scan TO readonly;
+
+GRANT ALL ON TABLE public.scan TO "surface-scan-test";
+
+GRANT ALL ON TABLE public.scan TO "xmb-test";
+
+
+
+-- DROP TABLE IF EXISTS public.scan_result;
+
+CREATE TABLE IF NOT EXISTS public.scan_result
+(
+    id integer NOT NULL DEFAULT nextval('scan_result_id_seq'::regclass),
+    scan_id integer NOT NULL,
+    original_image_path character varying(200) COLLATE pg_catalog."default" NOT NULL,
+    new_image_path character varying(200) COLLATE pg_catalog."default" NOT NULL,
+    result json NOT NULL DEFAULT '{}'::json,
+    message text COLLATE pg_catalog."default",
+    metadata json NOT NULL DEFAULT '{}'::json,
+    CONSTRAINT scan_result_pk PRIMARY KEY (id),
+    CONSTRAINT scan_result_scan_fk FOREIGN KEY (scan_id)
+        REFERENCES public.scan (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.scan_result
+    OWNER to "xmb-test";
+
+GRANT ALL ON TABLE public.scan_result TO readonly;
+
+GRANT ALL ON TABLE public.scan_result TO "surface-scan-test";
+
+GRANT ALL ON TABLE public.scan_result TO "xmb-test";
+
+-------------------------------------------------------------
+
+CREATE SEQUENCE IF NOT EXISTS public.scan_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 2147483647
+    CACHE 1;
+
+ALTER SEQUENCE public.scan_id_seq
+    OWNED BY public.scan.id;
+
+ALTER SEQUENCE public.scan_id_seq
+    OWNER TO "xmb-test";
+
+GRANT ALL ON SEQUENCE public.scan_id_seq TO readonly;
+
+GRANT ALL ON SEQUENCE public.scan_id_seq TO "surface-scan-test";
+
+GRANT ALL ON SEQUENCE public.scan_id_seq TO "xmb-test";
+
+
+
+-- DROP SEQUENCE IF EXISTS public.scan_result_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS public.scan_result_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 2147483647
+    CACHE 1;
+
+ALTER SEQUENCE public.scan_result_id_seq
+    OWNED BY public.scan_result.id;
+
+ALTER SEQUENCE public.scan_result_id_seq
+    OWNER TO "xmb-test";
+
+GRANT ALL ON SEQUENCE public.scan_result_id_seq TO readonly;
+
+GRANT ALL ON SEQUENCE public.scan_result_id_seq TO "surface-scan-test";
+
+GRANT ALL ON SEQUENCE public.scan_result_id_seq TO "xmb-test";
+
+**********************************************************************
+
+CREATE DATABASE "xmb-test"
+    WITH
+    OWNER = "xmb-test"
+    ENCODING = 'UTF8'
+    LC_COLLATE = 'en_US.utf8'
+    LC_CTYPE = 'en_US.utf8'
+    LOCALE_PROVIDER = 'libc'
+    TABLESPACE = pg_default
+    CONNECTION LIMIT = -1
+    IS_TEMPLATE = False;
+
+-- Table: public.document
+
+-- DROP TABLE IF EXISTS public.document;
+
+CREATE TABLE IF NOT EXISTS public.document
+(
+    id integer NOT NULL DEFAULT nextval('document_id_seq'::regclass),
+    name character varying COLLATE pg_catalog."default",
+    type character varying COLLATE pg_catalog."default",
+    object_id integer,
+    store_id character varying COLLATE pg_catalog."default",
+    metadata text COLLATE pg_catalog."default",
+    store_cropped_id character varying COLLATE pg_catalog."default",
+    CONSTRAINT document_pk PRIMARY KEY (id),
+    CONSTRAINT document_object_fk FOREIGN KEY (object_id)
+        REFERENCES public.object (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.document
+    OWNER to "xmb-test";
+
+REVOKE ALL ON TABLE public.document FROM readonly;
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.document TO readonly;
+
+GRANT ALL ON TABLE public.document TO "xmb-test";
+
+COMMENT ON TABLE public.document
+    IS 'Document storage and link to S3 objects';
+
+COMMENT ON COLUMN public.document.id
+    IS 'Unique identifier';
+
+COMMENT ON COLUMN public.document.name
+    IS 'File name';
+
+COMMENT ON COLUMN public.document.type
+    IS 'MIME type of the file';
+
+COMMENT ON COLUMN public.document.object_id
+    IS 'Identifier of the object linked to this document, if the document is a "detail image" of an object';
+
+COMMENT ON COLUMN public.document.store_id
+    IS 'Identifier of the file in S3 storage';
+
+COMMENT ON COLUMN public.document.metadata
+    IS 'JSON-encoded metadata, including height & width for images';
+
+COMMENT ON COLUMN public.document.store_cropped_id
+    IS 'If the document is an image''s detail, this column stores the S3 identifier of the cropped image';
+
+
+-- Table: public.document_shared
+
+-- DROP TABLE IF EXISTS public.document_shared;
+
+CREATE TABLE IF NOT EXISTS public.document_shared
+(
+    object_shared_id integer NOT NULL,
+    document_id integer NOT NULL,
+    CONSTRAINT document_shared_pk PRIMARY KEY (object_shared_id, document_id),
+    CONSTRAINT document_shared_document_fk FOREIGN KEY (document_id)
+        REFERENCES public.document (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT document_shared_object_shared_fk FOREIGN KEY (object_shared_id)
+        REFERENCES public.object_shared (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.document_shared
+    OWNER to "xmb-test";
+
+REVOKE ALL ON TABLE public.document_shared FROM readonly;
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.document_shared TO readonly;
+
+GRANT ALL ON TABLE public.document_shared TO "xmb-test";
+
+COMMENT ON TABLE public.document_shared
+    IS 'List all documents shared with one "object share"';
+
+COMMENT ON COLUMN public.document_shared.object_shared_id
+    IS 'Object Share identifier';
+
+COMMENT ON COLUMN public.document_shared.document_id
+    IS 'Document identifier';
+
+
+
+-- Table: public.metadata
+
+-- DROP TABLE IF EXISTS public.metadata;
+
+CREATE TABLE IF NOT EXISTS public.metadata
+(
+    id integer NOT NULL DEFAULT nextval('metadata_id_seq'::regclass),
+    code character varying COLLATE pg_catalog."default" NOT NULL,
+    value_type character varying COLLATE pg_catalog."default",
+    translation_id integer,
+    creation_date timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_date timestamp without time zone,
+    CONSTRAINT metadata_pk PRIMARY KEY (id),
+    CONSTRAINT metadata_translations_fk FOREIGN KEY (translation_id)
+        REFERENCES public.translation (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.metadata
+    OWNER to "xmb-test";
+
+REVOKE ALL ON TABLE public.metadata FROM readonly;
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.metadata TO readonly;
+
+GRANT ALL ON TABLE public.metadata TO "xmb-test";
+
+COMMENT ON TABLE public.metadata
+    IS 'List of all existing metadata';
+
+COMMENT ON COLUMN public.metadata.id
+    IS 'Unique identifier';
+
+COMMENT ON COLUMN public.metadata.code
+    IS 'Unique code for this metadata';
+
+COMMENT ON COLUMN public.metadata.value_type
+    IS 'Type of value : "string" or "select"';
+
+COMMENT ON COLUMN public.metadata.translation_id
+    IS 'Identifier of the translation used for this metadata''s label';
+
+COMMENT ON COLUMN public.metadata.creation_date
+    IS 'Creation date';
+
+COMMENT ON COLUMN public.metadata.update_date
+    IS 'Last update date';
+
+-- Trigger: set_metadata_update_date
+
+-- DROP TRIGGER IF EXISTS set_metadata_update_date ON public.metadata;
+
+CREATE OR REPLACE TRIGGER set_metadata_update_date
+    BEFORE UPDATE 
+    ON public.metadata
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_update_date();
+
+
+-- Table: public.migrations
+
+-- DROP TABLE IF EXISTS public.migrations;
+
+CREATE TABLE IF NOT EXISTS public.migrations
+(
+    id integer NOT NULL DEFAULT nextval('migrations_id_seq'::regclass),
+    "timestamp" bigint NOT NULL,
+    name character varying COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT "PK_8c82d7f526340ab734260ea46be" PRIMARY KEY (id)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.migrations
+    OWNER to "xmb-test";
+
+REVOKE ALL ON TABLE public.migrations FROM readonly;
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.migrations TO readonly;
+
+GRANT ALL ON TABLE public.migrations TO "xmb-test";
+
+
+-- Table: public.object
+
+-- DROP TABLE IF EXISTS public.object;
+
+CREATE TABLE IF NOT EXISTS public.object
+(
+    id integer NOT NULL DEFAULT nextval('object_id_seq'::regclass),
+    name character varying COLLATE pg_catalog."default",
+    type_id integer NOT NULL,
+    user_creation_id integer NOT NULL,
+    creation_date timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_date timestamp without time zone,
+    description character varying COLLATE pg_catalog."default",
+    image_id integer,
+    overview_id integer,
+    token_id integer,
+    CONSTRAINT object_pk PRIMARY KEY (id),
+    CONSTRAINT object_document_fk FOREIGN KEY (image_id)
+        REFERENCES public.document (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT object_document_fk_1 FOREIGN KEY (overview_id)
+        REFERENCES public.document (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT object_object_type_fk FOREIGN KEY (type_id)
+        REFERENCES public.object_type (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT object_token_fk FOREIGN KEY (token_id)
+        REFERENCES public.token (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT object_user_fk FOREIGN KEY (user_creation_id)
+        REFERENCES public."user" (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.object
+    OWNER to "xmb-test";
+
+REVOKE ALL ON TABLE public.object FROM readonly;
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.object TO readonly;
+
+GRANT ALL ON TABLE public.object TO "xmb-test";
+
+COMMENT ON TABLE public.object
+    IS 'An object created by an user';
+
+COMMENT ON COLUMN public.object.id
+    IS 'Unique identifier of the object';
+
+COMMENT ON COLUMN public.object.name
+    IS 'Name of the object';
+
+COMMENT ON COLUMN public.object.type_id
+    IS 'Type of the object';
+
+COMMENT ON COLUMN public.object.user_creation_id
+    IS 'Unique identifier of the user who created the object';
+
+COMMENT ON COLUMN public.object.creation_date
+    IS 'Creation date';
+
+COMMENT ON COLUMN public.object.update_date
+    IS 'Last update date';
+
+COMMENT ON COLUMN public.object.description
+    IS 'Description of the object';
+
+COMMENT ON COLUMN public.object.image_id
+    IS 'Unique identifier of the document used as "main image" for this object';
+
+COMMENT ON COLUMN public.object.overview_id
+    IS 'Unique identifier of the document used as "Overview image" for this object';
+
+COMMENT ON COLUMN public.object.token_id
+    IS 'Unique identifier of the Token in the Tezos Smart Contract';
+
+-- Trigger: set_object_update_date
+
+-- DROP TRIGGER IF EXISTS set_object_update_date ON public.object;
+
+CREATE OR REPLACE TRIGGER set_object_update_date
+    BEFORE UPDATE 
+    ON public.object
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_update_date();
+
+
+-- Table: public.object_detail
+
+-- DROP TABLE IF EXISTS public.object_detail;
+
+CREATE TABLE IF NOT EXISTS public.object_detail
+(
+    id integer NOT NULL DEFAULT nextval('object_detail_id_seq'::regclass),
+    x_axis integer,
+    y_axis integer,
+    object_id integer,
+    document_id integer,
+    CONSTRAINT object_details_pk PRIMARY KEY (id),
+    CONSTRAINT object_details_document_fk FOREIGN KEY (document_id)
+        REFERENCES public.document (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT object_details_object_fk FOREIGN KEY (object_id)
+        REFERENCES public.object (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.object_detail
+    OWNER to "xmb-test";
+
+REVOKE ALL ON TABLE public.object_detail FROM readonly;
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.object_detail TO readonly;
+
+GRANT ALL ON TABLE public.object_detail TO "xmb-test";
+
+COMMENT ON TABLE public.object_detail
+    IS 'List of detail images for one object';
+
+COMMENT ON COLUMN public.object_detail.id
+    IS 'Unique identifier';
+
+COMMENT ON COLUMN public.object_detail.x_axis
+    IS 'Pixel X index for the center of this detail in the overview image of the object';
+
+COMMENT ON COLUMN public.object_detail.y_axis
+    IS 'Pixel Y index for the center of this detail in the overview image of the object';
+
+COMMENT ON COLUMN public.object_detail.object_id
+    IS 'Unique identifier of the object';
+
+COMMENT ON COLUMN public.object_detail.document_id
+    IS 'Document (image) linked to this detail';
+
+
+-- Table: public.object_has_metadata
+
+-- DROP TABLE IF EXISTS public.object_has_metadata;
+
+CREATE TABLE IF NOT EXISTS public.object_has_metadata
+(
+    object_id integer NOT NULL,
+    metadata_id integer NOT NULL,
+    free_value character varying COLLATE pg_catalog."default",
+    value_id integer,
+    id integer NOT NULL DEFAULT nextval('object_has_metadata_id_seq'::regclass),
+    CONSTRAINT object_has_metadata_pk PRIMARY KEY (id),
+    CONSTRAINT object_has_metadata_metadata_fk FOREIGN KEY (metadata_id)
+        REFERENCES public.metadata (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT object_has_metadata_object_fk FOREIGN KEY (object_id)
+        REFERENCES public.object (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.object_has_metadata
+    OWNER to "xmb-test";
+
+REVOKE ALL ON TABLE public.object_has_metadata FROM readonly;
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.object_has_metadata TO readonly;
+
+GRANT ALL ON TABLE public.object_has_metadata TO "xmb-test";
+
+COMMENT ON TABLE public.object_has_metadata
+    IS 'Links between Object & Metadata, created when the Object is created';
+
+COMMENT ON COLUMN public.object_has_metadata.object_id
+    IS 'Unique identifier of the object';
+
+COMMENT ON COLUMN public.object_has_metadata.metadata_id
+    IS 'Unique identifier of the metadata';
+
+COMMENT ON COLUMN public.object_has_metadata.free_value
+    IS 'Text value is the metadata''s type is not "select"';
+
+COMMENT ON COLUMN public.object_has_metadata.value_id
+    IS 'Option selected if the metadata''s type is "select"';
+
+COMMENT ON COLUMN public.object_has_metadata.id
+    IS 'Unique identifier';
+
+
+
+
+-- Table: public.object_shared
+
+-- DROP TABLE IF EXISTS public.object_shared;
+
+CREATE TABLE IF NOT EXISTS public.object_shared
+(
+    id integer NOT NULL DEFAULT nextval('object_shared_id_seq'::regclass),
+    share_id character varying COLLATE pg_catalog."default" NOT NULL,
+    object_id integer NOT NULL,
+    validity_date timestamp without time zone,
+    user_id smallint,
+    creation_date timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_date timestamp without time zone,
+    CONSTRAINT object_shared_pk PRIMARY KEY (id),
+    CONSTRAINT object_shared_object_fk FOREIGN KEY (object_id)
+        REFERENCES public.object (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.object_shared
+    OWNER to "xmb-test";
+
+REVOKE ALL ON TABLE public.object_shared FROM readonly;
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.object_shared TO readonly;
+
+GRANT ALL ON TABLE public.object_shared TO "xmb-test";
+
+COMMENT ON TABLE public.object_shared
+    IS 'Represents a "shared" of one specific object';
+
+COMMENT ON COLUMN public.object_shared.id
+    IS 'Unique identifier of the share';
+
+COMMENT ON COLUMN public.object_shared.share_id
+    IS 'UUID used an "external reference" for this share. This UUID is displayed in the QR Code for an object share.';
+
+COMMENT ON COLUMN public.object_shared.object_id
+    IS 'Unique identifier of the shared object';
+
+COMMENT ON COLUMN public.object_shared.validity_date
+    IS 'Share is not valid after this date';
+
+COMMENT ON COLUMN public.object_shared.user_id
+    IS 'Unique identifier of the user who accepted this share (this user can see this object in his library)';
+
+COMMENT ON COLUMN public.object_shared.creation_date
+    IS 'Create date';
+
+COMMENT ON COLUMN public.object_shared.update_date
+    IS 'Last update date';
+
+-- Trigger: set_object_shared_update_date
+
+-- DROP TRIGGER IF EXISTS set_object_shared_update_date ON public.object_shared;
+
+CREATE OR REPLACE TRIGGER set_object_shared_update_date
+    BEFORE UPDATE 
+    ON public.object_shared
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_update_date();
+
+
+-- Table: public.object_type
+
+-- DROP TABLE IF EXISTS public.object_type;
+
+CREATE TABLE IF NOT EXISTS public.object_type
+(
+    id integer NOT NULL DEFAULT nextval('object_type_id_seq'::regclass),
+    code character varying COLLATE pg_catalog."default",
+    translation_id integer,
+    creation_date timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_date timestamp without time zone,
+    nb_details integer,
+    cropped_pixels_width integer,
+    cropped_pixels_height integer,
+    CONSTRAINT object_type_pk PRIMARY KEY (id),
+    CONSTRAINT object_type_translations_fk FOREIGN KEY (translation_id)
+        REFERENCES public.translation (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.object_type
+    OWNER to "xmb-test";
+
+REVOKE ALL ON TABLE public.object_type FROM readonly;
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.object_type TO readonly;
+
+GRANT ALL ON TABLE public.object_type TO "xmb-test";
+
+COMMENT ON TABLE public.object_type
+    IS 'List of all object''s types';
+
+COMMENT ON COLUMN public.object_type.id
+    IS 'Unique identifier';
+
+COMMENT ON COLUMN public.object_type.code
+    IS 'Unique code of the object type';
+
+COMMENT ON COLUMN public.object_type.translation_id
+    IS 'Identifier of the transaction used for this object type';
+
+COMMENT ON COLUMN public.object_type.creation_date
+    IS 'Creation date';
+
+COMMENT ON COLUMN public.object_type.update_date
+    IS 'Last update date';
+
+COMMENT ON COLUMN public.object_type.nb_details
+    IS 'Number of "detail images" linked to this object type (min 1)';
+
+COMMENT ON COLUMN public.object_type.cropped_pixels_width
+    IS 'Width of the "cropped image" when creating the "detail image" of this object type';
+
+COMMENT ON COLUMN public.object_type.cropped_pixels_height
+    IS 'Height of the "cropped image" when creating the "detail image" of this object type';
+
+-- Trigger: set_object_type_update_date
+
+-- DROP TRIGGER IF EXISTS set_object_type_update_date ON public.object_type;
+
+CREATE OR REPLACE TRIGGER set_object_type_update_date
+    BEFORE UPDATE 
+    ON public.object_type
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_update_date();
+
+
+-- Table: public.object_type_has_metadata
+
+-- DROP TABLE IF EXISTS public.object_type_has_metadata;
+
+CREATE TABLE IF NOT EXISTS public.object_type_has_metadata
+(
+    object_type_id integer NOT NULL,
+    metadata_id integer,
+    mandatory boolean,
+    "order" integer,
+    id integer NOT NULL DEFAULT nextval('object_type_has_metadata_id_seq'::regclass),
+    CONSTRAINT object_type_has_metadata_pk PRIMARY KEY (id),
+    CONSTRAINT object_type_has_metadata_metadata_fk FOREIGN KEY (metadata_id)
+        REFERENCES public.metadata (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT object_type_has_metadata_object_type_fk FOREIGN KEY (object_type_id)
+        REFERENCES public.object_type (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.object_type_has_metadata
+    OWNER to "xmb-test";
+
+REVOKE ALL ON TABLE public.object_type_has_metadata FROM readonly;
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.object_type_has_metadata TO readonly;
+
+GRANT ALL ON TABLE public.object_type_has_metadata TO "xmb-test";
+
+COMMENT ON TABLE public.object_type_has_metadata
+    IS 'List of metadata for one Object Type';
+
+COMMENT ON COLUMN public.object_type_has_metadata.object_type_id
+    IS 'Unique identifier of the object type';
+
+COMMENT ON COLUMN public.object_type_has_metadata.metadata_id
+    IS 'Unique identifier of the metadata';
+
+COMMENT ON COLUMN public.object_type_has_metadata.mandatory
+    IS 'Is this metadata mandatory for this object type or not ?';
+
+COMMENT ON COLUMN public.object_type_has_metadata."order"
+    IS 'Order of the metadata in the object creation form';
+
+
+-- Table: public.option
+
+-- DROP TABLE IF EXISTS public.option;
+
+CREATE TABLE IF NOT EXISTS public.option
+(
+    id integer NOT NULL DEFAULT nextval('option_id_seq'::regclass),
+    metadata_id integer NOT NULL,
+    code character varying COLLATE pg_catalog."default",
+    translation_id integer,
+    CONSTRAINT options_pk PRIMARY KEY (id),
+    CONSTRAINT options_metadata_fk FOREIGN KEY (metadata_id)
+        REFERENCES public.metadata (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT options_translations_fk FOREIGN KEY (translation_id)
+        REFERENCES public.translation (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.option
+    OWNER to "xmb-test";
+
+REVOKE ALL ON TABLE public.option FROM readonly;
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.option TO readonly;
+
+GRANT ALL ON TABLE public.option TO "xmb-test";
+
+COMMENT ON TABLE public.option
+    IS 'List of all options for metadata for type "select"';
+
+COMMENT ON COLUMN public.option.id
+    IS 'Unique identifier';
+
+COMMENT ON COLUMN public.option.metadata_id
+    IS 'Unique identifier of the metadata';
+
+COMMENT ON COLUMN public.option.code
+    IS 'Code of the option';
+
+
+-- Table: public.token
+
+-- DROP TABLE IF EXISTS public.token;
+
+CREATE TABLE IF NOT EXISTS public.token
+(
+    id integer NOT NULL DEFAULT nextval('token_id_seq'::regclass),
+    creation_hash character varying COLLATE pg_catalog."default" NOT NULL,
+    user_creation_id integer NOT NULL,
+    creation_date timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_date timestamp without time zone,
+    nft_id bigint,
+    CONSTRAINT token_pk PRIMARY KEY (id),
+    CONSTRAINT token_unique UNIQUE (nft_id),
+    CONSTRAINT token_user_fk FOREIGN KEY (user_creation_id)
+        REFERENCES public."user" (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.token
+    OWNER to "xmb-test";
+
+REVOKE ALL ON TABLE public.token FROM readonly;
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.token TO readonly;
+
+GRANT ALL ON TABLE public.token TO "xmb-test";
+
+COMMENT ON TABLE public.token
+    IS 'Link to Tezos Smart Contract for each created object';
+
+COMMENT ON COLUMN public.token.id
+    IS 'Unique identifier';
+
+COMMENT ON COLUMN public.token.creation_hash
+    IS 'Hash of the Tezos'' transaction when creating the object';
+
+COMMENT ON COLUMN public.token.user_creation_id
+    IS 'Unique identifier of the user who created the object';
+
+COMMENT ON COLUMN public.token.creation_date
+    IS 'Creation date';
+
+COMMENT ON COLUMN public.token.update_date
+    IS 'Last update date';
+
+COMMENT ON COLUMN public.token.nft_id
+    IS 'Unique identifier of the NFT in Tezos Smart Contract';
+
+-- Trigger: set_token_update_date
+
+-- DROP TRIGGER IF EXISTS set_token_update_date ON public.token;
+
+CREATE OR REPLACE TRIGGER set_token_update_date
+    BEFORE UPDATE 
+    ON public.token
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_update_date();
+
+
+-- Table: public.translation
+
+-- DROP TABLE IF EXISTS public.translation;
+
+CREATE TABLE IF NOT EXISTS public.translation
+(
+    id integer NOT NULL DEFAULT nextval('translation_id_seq'::regclass),
+    code character varying COLLATE pg_catalog."default",
+    label_en character varying COLLATE pg_catalog."default",
+    label_fr character varying COLLATE pg_catalog."default",
+    creation_date timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_date timestamp without time zone,
+    CONSTRAINT translations_pk PRIMARY KEY (id)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.translation
+    OWNER to "xmb-test";
+
+REVOKE ALL ON TABLE public.translation FROM readonly;
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.translation TO readonly;
+
+GRANT ALL ON TABLE public.translation TO "xmb-test";
+
+COMMENT ON TABLE public.translation
+    IS 'Transactions used in the mobile app';
+
+COMMENT ON COLUMN public.translation.id
+    IS 'Unique identifier';
+
+COMMENT ON COLUMN public.translation.code
+    IS 'Unique code of the translation';
+
+COMMENT ON COLUMN public.translation.label_en
+    IS 'Label for EN language';
+
+COMMENT ON COLUMN public.translation.label_fr
+    IS 'Label for FR language';
+
+COMMENT ON COLUMN public.translation.creation_date
+    IS 'Creation date';
+
+COMMENT ON COLUMN public.translation.update_date
+    IS 'Last update date';
+
+-- Trigger: set_translation_update_date
+
+-- DROP TRIGGER IF EXISTS set_translation_update_date ON public.translation;
+
+CREATE OR REPLACE TRIGGER set_translation_update_date
+    BEFORE UPDATE 
+    ON public.translation
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_update_date();
+
+
+-- Table: public.unique_token
+
+-- DROP TABLE IF EXISTS public.unique_token;
+
+CREATE TABLE IF NOT EXISTS public.unique_token
+(
+    token uuid NOT NULL DEFAULT gen_random_uuid(),
+    type uniquetokentype NOT NULL,
+    user_id integer NOT NULL,
+    active boolean NOT NULL DEFAULT true,
+    expiration_date timestamp without time zone,
+    creation_date timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_date timestamp without time zone,
+    otp character varying(6) COLLATE pg_catalog."default",
+    CONSTRAINT unique_token_pkey PRIMARY KEY (token),
+    CONSTRAINT unique_token_otp UNIQUE (user_id, type, otp),
+    CONSTRAINT unique_token_user_fk FOREIGN KEY (user_id)
+        REFERENCES public."user" (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.unique_token
+    OWNER to "xmb-test";
+
+REVOKE ALL ON TABLE public.unique_token FROM readonly;
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.unique_token TO readonly;
+
+GRANT ALL ON TABLE public.unique_token TO "xmb-test";
+
+COMMENT ON TABLE public.unique_token
+    IS 'Unique token generated for email verification or password renew';
+
+COMMENT ON COLUMN public.unique_token.token
+    IS 'Unique identifier (UUID) used in sent emails';
+
+COMMENT ON COLUMN public.unique_token.type
+    IS 'Type of the token';
+
+COMMENT ON COLUMN public.unique_token.user_id
+    IS 'Unique identifier of the user linked to this token';
+
+COMMENT ON COLUMN public.unique_token.active
+    IS 'Is this token active or not';
+
+COMMENT ON COLUMN public.unique_token.expiration_date
+    IS 'End validity date for this token';
+
+COMMENT ON COLUMN public.unique_token.creation_date
+    IS 'Creation date';
+
+COMMENT ON COLUMN public.unique_token.update_date
+    IS 'Last update date';
+
+COMMENT ON COLUMN public.unique_token.otp
+    IS '''short'' version of the token, in case of email verification';
+
+-- Trigger: set_unique_token_update_date
+
+-- DROP TRIGGER IF EXISTS set_unique_token_update_date ON public.unique_token;
+
+CREATE OR REPLACE TRIGGER set_unique_token_update_date
+    BEFORE UPDATE 
+    ON public.unique_token
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_update_date();
+
+
+-- Table: public.user
+
+-- DROP TABLE IF EXISTS public."user";
+
+CREATE TABLE IF NOT EXISTS public."user"
+(
+    id integer NOT NULL DEFAULT nextval('user_id_seq'::regclass),
+    first_name character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    last_name character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    email character varying(200) COLLATE pg_catalog."default" NOT NULL,
+    password character varying(250) COLLATE pg_catalog."default" NOT NULL,
+    status userstatus NOT NULL DEFAULT 'created'::userstatus,
+    creation_date timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_date timestamp without time zone,
+    tezos_address character varying(36) COLLATE pg_catalog."default" NOT NULL,
+    is_user_test boolean DEFAULT false,
+    CONSTRAINT "PK_cace4a159ff9f2512dd42373760" PRIMARY KEY (id)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public."user"
+    OWNER to "xmb-test";
+
+REVOKE ALL ON TABLE public."user" FROM readonly;
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public."user" TO readonly;
+
+GRANT ALL ON TABLE public."user" TO "xmb-test";
+
+COMMENT ON TABLE public."user"
+    IS 'All mobile''s users';
+
+COMMENT ON COLUMN public."user".id
+    IS 'Unique identifier';
+
+COMMENT ON COLUMN public."user".first_name
+    IS 'First name';
+
+COMMENT ON COLUMN public."user".last_name
+    IS 'Last name';
+
+COMMENT ON COLUMN public."user".email
+    IS 'Email address';
+
+COMMENT ON COLUMN public."user".password
+    IS 'Password (bcrypt-hashed)';
+
+COMMENT ON COLUMN public."user".status
+    IS 'Status of the user';
+
+COMMENT ON COLUMN public."user".creation_date
+    IS 'Creation date';
+
+COMMENT ON COLUMN public."user".update_date
+    IS 'Last update date';
+
+COMMENT ON COLUMN public."user".tezos_address
+    IS 'Tezos address for this user';
+-- Index: user_email_unique_idx
+
+-- DROP INDEX IF EXISTS public.user_email_unique_idx;
+
+CREATE UNIQUE INDEX IF NOT EXISTS user_email_unique_idx
+    ON public."user" USING btree
+    (lower(email::text) COLLATE pg_catalog."default" ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+-- Trigger: set_user_update_date
+
+-- DROP TRIGGER IF EXISTS set_user_update_date ON public."user";
+
+CREATE OR REPLACE TRIGGER set_user_update_date
+    BEFORE UPDATE 
+    ON public."user"
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_update_date();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
