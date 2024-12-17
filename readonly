@@ -1,3 +1,4 @@
+pass : $2b$15$tuhxeqDHQpePLQSR7.nHrO1/rfAaztAjkPRmsUtvM1ei8xl3kS0QW
 CREATE ROLE readonly WITH
   LOGIN
   NOSUPERUSER
